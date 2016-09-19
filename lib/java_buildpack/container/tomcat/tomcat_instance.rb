@@ -31,11 +31,13 @@ module JavaBuildpack
       #
       # @param [Hash] context a collection of utilities used the component
       def initialize(context)
+        @logger = JavaBuildpack::Logging::LoggerFactory.instance.get_logger TomcatInstance
         super(context) { |candidate_version| candidate_version.check_size(3) }
       end
 
       # (see JavaBuildpack::Component::BaseComponent#compile)
       def compile
+        @logger.info { "---> Compile in TomcatInstance" }
         download(@version, @uri) { |file| expand file }
         link_to(@application.root.children, root)
         @droplet.additional_libraries << tomcat_datasource_jar if tomcat_datasource_jar.exist?

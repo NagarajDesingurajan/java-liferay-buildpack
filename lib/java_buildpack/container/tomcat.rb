@@ -24,6 +24,7 @@ require 'java_buildpack/container/tomcat/tomcat_logging_support'
 require 'java_buildpack/container/tomcat/tomcat_access_logging_support'
 require 'java_buildpack/container/tomcat/tomcat_redis_store'
 require 'java_buildpack/container/tomcat/tomcat_gemfire_store'
+require 'java_buildpack/container/tomcat/tomcat_liferay'
 require 'java_buildpack/util/java_main_utils'
 
 module JavaBuildpack
@@ -57,6 +58,7 @@ module JavaBuildpack
           TomcatAccessLoggingSupport.new(sub_configuration_context(context, 'access_logging_support')),
           TomcatRedisStore.new(sub_configuration_context(context, 'redis_store')),
           TomcatGemfireStore.new(sub_configuration_context(context, 'gemfire_store')),
+          TomcatLiferaySupport.new(sub_configuration_context(context, 'liferay')),
           TomcatInsightSupport.new(context)
         ]
 
@@ -69,13 +71,21 @@ module JavaBuildpack
 
       # (see JavaBuildpack::Component::ModularComponent#supports?)
       def supports?
-        web_inf? && !JavaBuildpack::Util::JavaMainUtils.main_class(@application)
+        true
+        #web_inf? && !JavaBuildpack::Util::JavaMainUtils.main_class(@application)
+        #Check if This is a Liferay enabled Tomcat
+        #portlet_jar?
+        #{(@droplet.sandbox + 'lib/ext/catalina.sh')
       end
 
       private
 
       def web_inf?
         (@application.root + 'WEB-INF').exist?
+      end
+
+      def portlet_jar?
+        (@droplet.sandbox + 'lib/ext/portlet.jar').exist?
       end
 
     end

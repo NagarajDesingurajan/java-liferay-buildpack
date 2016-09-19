@@ -1,122 +1,169 @@
-# Encoding: utf-8
-# Cloud Foundry Java Buildpack
-# Copyright 2013-2016 the original author or authors.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#      http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 
-require 'fileutils'
 require 'java_buildpack/component/versioned_dependency_component'
-require 'java_buildpack/container'
-require 'java_buildpack/container/tomcat/tomcat_utils'
-require 'java_buildpack/util/tokenized_version'
+#require 'java_buildpack/container'
+#require 'java_buildpack/container/tomcat/tomcat_utils'
+require 'java_buildpack/logging/logger_factory'
 
 module JavaBuildpack
   module Container
 
-    # Encapsulates the detect, compile, and release functionality for the Tomcat instance.
-    class TomcatLiferay < JavaBuildpack::Component::VersionedDependencyComponent
+    # Encapsulates the detect, compile, and release functionality for Tomcat Liferay support.
+    class TomcatLiferaySupport < JavaBuildpack::Component::VersionedDependencyComponent
       include JavaBuildpack::Container
 
-      # Creates an instance
-      #
-      # @param [Hash] context a collection of utilities used the component
-      def initialize(context)
-        super(context) { |candidate_version| candidate_version.check_size(3) }
-      end
-
-      # (see JavaBuildpack::Component::BaseComponent#compile)
+      # (see JavaBuildpack::Component::ModularComponent#command)
       def compile
-        download(@version, @uri) { |file| expand file }
-        link_to(@application.root.children, root)
-        @droplet.additional_libraries << tomcat_datasource_jar if tomcat_datasource_jar.exist?
-        @droplet.additional_libraries.link_to web_inf_lib
+        # super
+        return unless supports?
+
+        @logger.debug { "IN TomcatLiferaySupport::compile" }
+
+        #Install the liferay WAR
+        @logger.debug{ "Version::#{@droplet.sandbox}/webapps/ROOT/" }
+
+        download_jar(war_name, "#{@droplet.sandbox}/webapps/ROOT/")
+        
+        deploy_liferay_war
+        # Get the Portlets WAR and move them to auto deploy folder
+        deploy_portlet_wars
+
+        #Configure any bound MySQL DB
+        configure_liferay_db
+
       end
 
-      # (see JavaBuildpack::Component::BaseComponent#release)
       def release
       end
 
       protected
 
-      # (see JavaBuildpack::Component::VersionedDependencyComponent#supports?)
+
+      # (see JavaBuildpack::Component::ModularComponent#supports?)
       def supports?
-        @logger       = JavaBuildpack::Logging::LoggerFactory.instance.get_logger TomcatLiferay
-        @logger.info{ "IN TOMCAT_LIFERAY" }
+        @logger       = JavaBuildpack::Logging::LoggerFactory.instance.get_logger TomcatLiferaySupport
         true
-      end
-
-      TOMCAT_8 = JavaBuildpack::Util::TokenizedVersion.new('8.0.0').freeze
-
-      private_constant :TOMCAT_8
-
-      # Checks whether Tomcat instance is Tomcat 7 compatible
-      def tomcat_7_compatible
-        @version < TOMCAT_8
+        #@application.services.one_service? FILTER, KEY_USERNAME, KEY_PASSWORD
       end
 
       private
 
-      def configure_jasper
-        return unless tomcat_7_compatible
+      FILTER = /lf-mysqldb/
 
-        document = read_xml server_xml
-        server   = REXML::XPath.match(document, '/Server').first
+      KEY_PASSWORD = 'password'.freeze
 
-        listener = REXML::Element.new('Listener')
-        listener.add_attribute 'className', 'org.apache.catalina.core.JasperListener'
+      KEY_USERNAME = 'username'.freeze
 
-        server.insert_before '//Service', listener
+     
+      private_constant :FILTER, :KEY_PASSWORD, :KEY_USERNAME
+              
 
-        write_xml server_xml, document
+      def deploy_liferay_war
+  
+        with_timing "Deploying Liferay war" do
+          
+          @logger.info{ "Extracting Liferay.war" }
+          war_file = "#{@droplet.sandbox}/webapps/ROOT/" + war_name
+          @logger.debug{ "war_file= #{war_file}" }
+          # Download the Liferay version and extract it in the ROOT folder
+          shell "unzip -q /tmp/app/.java-buildpack/tomcat/webapps/ROOT/liferay-portal-6.2.0_RELEASE.war -d /tmp/app/.java-buildpack/tomcat/webapps/ROOT/  2>&1"
+          shell "rm /tmp/app/.java-buildpack/tomcat/webapps/ROOT/liferay-portal-6.2.0_RELEASE.war"
+
+        end
       end
 
-      def configure_linking
-        document = read_xml context_xml
-        context  = REXML::XPath.match(document, '/Context').first
+      # The war is presented to the buildpack exploded, so we need to repackage it in a war
+      def deploy_portlet_wars
 
-        if tomcat_7_compatible
-          context.add_attribute 'allowLinking', true
+        destination = "#{@droplet.sandbox}/deploy/"
+        with_timing "Packaging #{@application.root} to #{destination} " do
+
+          FileUtils.mkdir_p "#{@droplet.sandbox}/deploy"
+          shell "cp #{@application.root}/*.war #{destination} "
+          shell "rm #{@application.root}/*.war"
+        end
+      end
+
+      # In this method we check if the application is bound to a service. If that is the case then we create the portal-ext.properties
+      # and store it in Liferay Portal classes directory.
+      def configure_liferay_db
+        @logger.info{ "In TomcatLiferay::configuring liferay db" }
+        credentials = @application.services.find_service(FILTER)['credentials']
+      
+        if credentials.to_s ==''
+          @logger.info {'--->No lf-mysqldb SERVICE FOUND'}
         else
-          context.add_element 'Resources', 'allowLinking' => true
+          file = "#{@droplet.sandbox}/webapps/ROOT/WEB-INF/classes/portal-ext.properties"
+          #if File.exist? (file)
+          #  @logger.info {"--->Portal-ext.properties file already exist, so skipping MySQL configuration" }
+          #else
+            with_timing "Creating portal-ext.properties in #{file}" do
+              @logger.info{ "--->credentials:#{credentials} found" }       
+              host_name     = credentials['hostname']
+              username      = credentials['username']
+              password      = credentials['password']
+              db_name       = credentials['name']
+              port          = credentials['port']
+              
+              File.open(file, 'w') do  |file| 
+                file.puts("#\n")
+                file.puts("# MySQL\n")
+                file.puts("#\n")
+
+                jdbc_url      = "jdbc:mysql://#{host_name}:#{port}/#{db_name}"
+                file.puts("jdbc.default.driverClassName=com.mysql.jdbc.Driver\n")
+                file.puts("jdbc.default.url=" + jdbc_url + "\n")
+                file.puts("jdbc.default.username=" + username + "\n")
+                file.puts("jdbc.default.password=" + password + "\n")
+
+                @logger.debug {"--->  Port:  #{port} \n"}
+                        
+                file.puts("#\n")
+                file.puts("# Configuration Connextion Pool\n") # This should be configurable through ENV
+                file.puts("#\n")
+                file.puts("jdbc.default.acquireIncrement=5\n")
+                file.puts("jdbc.default.connectionCustomizerClassName=com.liferay.portal.dao.jdbc.pool.c3p0.PortalConnectionCustomizer\n")
+                file.puts("jdbc.default.idleConnectionTestPeriod=60\n")
+                file.puts("jdbc.default.maxIdleTime=3600\n")
+
+                #Check if the user specify a maximum pool size
+                user_max_pool = ENV["LIFERAY_MAX_POOL_SIZE"]
+                if user_max_pool ==""
+                    file.puts("jdbc.default.maxPoolSize=100\n") #This is the default value from Liferay
+                    @logger.info {"--->  No value set for LIFERAY_MAX_POOL_SIZE so taking the default (100) \n"}
+                else
+                    file.puts("jdbc.default.maxPoolSize=" + user_max_pool + "\n")
+                    @logger.debug {"--->  LIFERAY_MAX_POOL_SIZE:  #{user_max_pool} \n"}
+                end
+                file.puts("jdbc.default.minPoolSize=10\n")
+                file.puts("jdbc.default.numHelperThreads=3\n")
+
+
+                file.puts("#\n")
+                file.puts("# Configuration of the auto deploy folder\n")
+                file.puts("#\n")
+                file.puts("auto.deploy.dest.dir=${catalina.home}/webapps\n")
+                file.puts("auto.deploy.deploy.dir=${catalina.home}/deploy\n")
+                file.puts("#\n")
+                file.puts("setup.wizard.enabled=false\n")
+                file.puts("#\n")
+                file.puts("auth.token.check.enabled=false\n")        
+              end
+              
+            end # end with_timing
+          #end
         end
-
-        write_xml context_xml, document
       end
 
-      def expand(file)
-        with_timing "Expanding #{@component_name} to #{@droplet.sandbox.relative_path_from(@droplet.root)}" do
-          FileUtils.mkdir_p @droplet.sandbox
-          shell "tar xzf #{file.path} -C #{@droplet.sandbox} --strip 1 --exclude webapps 2>&1"
+      def war_name
+        "liferay-portal-#{@version}.war"
+      end
+    
 
-          @droplet.copy_resources
-          configure_linking
-          configure_jasper
-        end
+      def portal_ext_properties_path
+        @droplet.sandbox + 'webapps/ROOT/WEB-INF/classes/portal-ext.properties'
       end
 
-      def root
-        context_path = (@configuration['context_path'] || 'ROOT').sub(%r{^/}, '').gsub(%r{/}, '#')
-        tomcat_webapps + context_path
-      end
-
-      def tomcat_datasource_jar
-        tomcat_lib + 'tomcat-jdbc.jar'
-      end
-
-      def web_inf_lib
-        @droplet.root + 'WEB-INF/lib'
-      end
-
+    
     end
 
   end

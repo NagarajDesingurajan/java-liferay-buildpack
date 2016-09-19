@@ -33,6 +33,9 @@ access_logging_support:
   version: 2.+
   repository_root: "{default.repository.root}/tomcat-access-logging-support"
   access_logging: disabled
+liferay:
+  version: 6.+
+  repository_root: "https://s3-us-west-2.amazonaws.com/java-liferay-buildpack/liferay"
 redis_store:
   version: 1.+
   repository_root: "{default.repository.root}/redis-store"
