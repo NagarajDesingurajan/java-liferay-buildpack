@@ -63,8 +63,8 @@ module JavaBuildpack
           @logger.info{ "Extracting Liferay.war" }
           @logger.debug{ "war_file= #{war_file}" }
           # Download the Liferay version and extract it in the ROOT folder
-          shell "unzip -q #{@droplet.sandbox}/webapps/ROOT/#{@war_name} -d #{@droplet.sandbox}/webapps/ROOT/  2>&1"
-          shell "rm #{@droplet.sandbox}/webapps/ROOT/#{@war_name}"
+          shell "unzip -q #{@droplet.sandbox}/webapps/ROOT/#{war_name} -d #{@droplet.sandbox}/webapps/ROOT/  2>&1"
+          shell "rm #{@droplet.sandbox}/webapps/ROOT/#{war_name}"
 
         end
       end
