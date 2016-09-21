@@ -60,13 +60,11 @@ module JavaBuildpack
       def deploy_liferay_war
   
         with_timing "Deploying Liferay war" do
-          
           @logger.info{ "Extracting Liferay.war" }
-          war_file = "#{@droplet.sandbox}/webapps/ROOT/" + war_name
           @logger.debug{ "war_file= #{war_file}" }
           # Download the Liferay version and extract it in the ROOT folder
-          shell "unzip -q /tmp/app/.java-buildpack/tomcat/webapps/ROOT/liferay-portal-6.2.0_RELEASE.war -d /tmp/app/.java-buildpack/tomcat/webapps/ROOT/  2>&1"
-          shell "rm /tmp/app/.java-buildpack/tomcat/webapps/ROOT/liferay-portal-6.2.0_RELEASE.war"
+          shell "unzip -q #{@droplet.sandbox}/webapps/ROOT/#{@war_name} -d #{@droplet.sandbox}/webapps/ROOT/  2>&1"
+          shell "rm #{@droplet.sandbox}/webapps/ROOT/#{@war_name}"
 
         end
       end
@@ -75,7 +73,7 @@ module JavaBuildpack
       def deploy_portlet_wars
 
         destination = "#{@droplet.sandbox}/deploy/"
-        with_timing "Packaging #{@application.root} to #{destination} " do
+        with_timing "Deploying war files in #{@application.root} to #{destination} " do
 
           FileUtils.mkdir_p "#{@droplet.sandbox}/deploy"
           shell "cp #{@application.root}/*.war #{destination} "
@@ -96,8 +94,7 @@ module JavaBuildpack
           #if File.exist? (file)
           #  @logger.info {"--->Portal-ext.properties file already exist, so skipping MySQL configuration" }
           #else
-            with_timing "Creating portal-ext.properties in #{file}" do
-              @logger.info{ "--->credentials:#{credentials} found" }       
+            with_timing "Creating portal-ext.properties in #{file}" do       
               host_name     = credentials['hostname']
               username      = credentials['username']
               password      = credentials['password']
