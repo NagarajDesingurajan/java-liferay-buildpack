@@ -18,7 +18,7 @@ The applications (ex. Portlets, Themes, etc.) that need to be deployed should be
 │   └── myOtherPortlet.war
 ```
 
-By default the installation will make use of an in-memory database (HSQL) provided by Liferay. However in an enterprise scenario, a MySql database is used and the good new is that the liferay-buildpack can automatically bind the application to an existing MySQL service. For that to happen, the service has to be created and named: lf-mysqldb in the space where the application has to be deployed. Once this is done, the application has to be bound to that service during the push (see the example section for more details). MySQL is the most used database in the Liferay world that why I have decided to make it the main focus. However it should not be a big deal in the future to support other type of Database.
+Liferay requires a database and MySql is commonly used.  The good new is that the liferay-buildpack can automatically bind the application to an existing MySQL service. For that to happen, the service has to be created and named: lf-mysqldb in the space where the application has to be deployed. Once this is done, the application has to be bound to that service during the push (see the example section for more details). MySQL is the most used database in the Liferay world that why I have decided to make it the main focus. However it should not be a big deal in the future to support other type of Database.
 
 One issue I faced during testing is regarding the connexion pool size. On PWS, the maximum number of connection you can get is 40. And the default maximum connection pool size is 100. So if you don’t have your own PCF installation where you can define your MySQL capacity, I have incorporated in the buildpack a way of changing that default value.  This can be helpful when testing on PWS.
 
@@ -62,7 +62,14 @@ Follow the step below to test Liferay session replication. This assume a deploym
 1. Get a portlet sample code here [Portlet Example][] and build the project to create the portlet war file
 2. Create a MySQL service instance named: lf-mysqldb
 3. Create a Gemfire Caching instance named: session-replication
-4. Deploy the Liferay application using the manifest below. As you can notice the application has been set to 2 instances.
+4. Deploy the Liferay application using the manifest below. As you can notice the application has been set to 2 instances as well as bound to 2 services
+
+```
+
+
+```
+
+
 5. Launch the application and using the portlet interface insert some data in the Portlet session.
 6. Terminate the current instance by clicking on “Kill instance” button.
 7. Refresh the page multiple times. You should see the data inserted previously in the session.
