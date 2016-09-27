@@ -18,13 +18,33 @@ The applications (ex. Portlets, Themes, etc.) that need to be deployed should be
 │   └── myOtherPortlet.war
 ```
 
-## Database configuration
+By default the installation will make use of an in-memory database (HSQL) provided by Liferay. However in an enterprise scenario, a MySql database is used and the good new is that the liferay-buildpack can automatically bind the application to an existing MySQL service. For that to happen, the service has to be created and named: lf-mysqldb in the space where the application has to be deployed. Once this is done, the application has to be bound to that service during the push (see the example section for more details). MySQL is the most used database in the Liferay world that why I have decided to make it the main focus. However it should not be a big deal in the future to support other type of Database.
 
-By default the installation will make use of an in-memory database (HSQL) provided by Liferay. However in an enterprise scenario, a MySql database is used and the good new is that the liferay-buildpack can automatically bind the application to an existing MySQL service. For that to happen, the service has to be created and named: lf-mysqldb in the space where the application has to be deployed. Once this is done, the application has to be bound to that service during the push (see the example section for more details). MySQL is the most used database in the Liferay world that why I have decided to make it the main focus. However it should not be a big deal in the future to support other type of Database. 
+One issue I faced during testing is regarding the connexion pool size. On PWS, the maximum number of connection you can get is 40. And the default maximum connection pool size is 100. So if you don’t have your own PCF installation where you can define your MySQL capacity, I have incorporated in the buildpack a way of changing that default value.  This can be helpful when testing on PWS.
 
-One issue I faced during testing is regarding the connexion pool size. On PWS, the maximum number of connection you can get is 40. And the default maximum connection pool size is 100. So if you don’t have your own PCF installation where you can define your MySQL capacity, I have incorporated in the buildpack a way of changing that default value.  This can be helpful when testing on PWS.  
+This value can be change through environment variable (see the example section) using the following key name: LIFERAY_MAX_POOL_SIZE. When testing on PWS, based on your ClearDB MySQL plan you can set that value to 10, 15, 30 or 40.
 
-This value can be change through environment variable (see the example section) using the following key name: LIFERAY_MAX_POOL_SIZE. When testing on PWS, based on your ClearDB MySQL plan you can set that value to 10, 15, 30 or 40. 
+
+Then use the manifest below to push your portlets:
+
+```
+---
+applications:
+- name: liferay
+  memory: 2048M
+  path: portlets.zip
+  buildpack: https://github.com/schabiyo/java-liferay-buildpack
+  timeout: 180
+  disk_quota: 2GB
+  services:
+  - lf-mysqldb
+  env:
+    JBP_CONFIG_TOMCAT: '{tomcat: { repository_root: "https://s3-us-west-2.amazonaws.com/java-liferay-buildpack/tomcat", version: 8.5.+ }}'
+    JBP_CONFIG_LIFERAY: '{liferay: { repository_root: "https://s3-us-west-2.amazonaws.com/java-liferay-buildpack/liferay", version: 6.2.+ }}'
+    JAVA_OPTS: "-Dfile.encoding=UTF8 -Dorg.apache.catalina.loader.WebappClassLoader.ENABLE_CLEAR_REFERENCES=false -Duser.timezone=GMT"
+    LIFERAY_MAX_POOL_SIZE: "75"
+    SPRING_PROFILES_ACTIVE: "cloud"
+```
 
 NOTE: I did my tests using PCF Dev [PCF Dev][]  without any issue 
 
