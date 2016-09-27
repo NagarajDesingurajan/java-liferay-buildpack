@@ -28,8 +28,26 @@ This value can be change through environment variable (see the example section) 
 
 NOTE: I did my tests using PCF Dev [PCF Dev][]  without any issue 
 
-TODO
+## File repository
 
+By default, Liferay stores documents and media files on the file system of the server on which it’s running which is not really suitable in a container world right?. Fortunately you can also use an entirely different method for storing documents and media files (i.e S3Store ,JCRStore, DBStore, etc). But for the purpose of this demonstration, we will be storing the documents and media files in the liferay instance's database, which in our case is a backend MySQL service. Doing so the documents and media files will survice a app crash. This has been configured already as part of the buildpack in the portal-ext.properties file by adding the following line:
+
+``dl.store.impl=com.liferay.portlet.documentlibrary.store.DBStore ``
+
+
+## Session replication
+
+Follow the step below to test Liferay session replication. This assume a deployment on PCF onr PCF Dev and a service instance name session-replication bound to our application.
+
+1. Get a portlet sample code here [Portlet Example][] and build the project to create the portlet war file
+2. Create a MySQL service instance named: lf-mysqldb
+3. Create a Gemfire Caching instance named: session-replication
+4. Deploy the Liferay application using the manifest below. As you can notice the application has been set to 2 instances.
+5. Launch the application and using the portlet interface insert some data in the Portlet session.
+6. Terminate the current instance by clicking on “Kill instance” button.
+7. Refresh the page multiple times. You should see the data inserted previously in the session.
+
+TODO: Test with Redis as caching store
 
 ## Troubleshooting
 
@@ -46,3 +64,4 @@ The best way to troubleshoot is to activate the Debug mode and go through the lo
 
 [Version Dependency Component]: https://github.com/cloudfoundry/java-buildpack/blob/master/docs/extending-versioned_dependency_component.md
 [PCF Dev]: https://network.pivotal.io/products/pcfdev
+[Portlet Example]: https://github.com/schabiyo/spring-liferay-session-portlet
