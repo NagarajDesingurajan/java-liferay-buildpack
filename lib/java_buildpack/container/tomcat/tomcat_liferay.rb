@@ -161,8 +161,8 @@ module JavaBuildpack
                         host_port = "#{host_name}:#{port}"
                         file.puts("cluster.link.autodetect.address=" + host_port +"\n")
                         
-                        #@logger.info {"--->  Disabling Caching \n"}
-                        #file.puts("browser.cache.disabled=true\n")
+                        @logger.info {"--->  Disabling Caching \n"}
+                        file.puts("browser.cache.disabled=true\n")
                         
                         
                         @logger.info {"--->  Configuring unicast \n"}
