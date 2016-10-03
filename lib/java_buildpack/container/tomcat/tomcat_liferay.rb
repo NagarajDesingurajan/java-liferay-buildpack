@@ -143,7 +143,39 @@ module JavaBuildpack
                 file.puts("#\n")
                 file.puts("setup.wizard.enabled=false\n")
                 file.puts("#\n")
-                file.puts("auth.token.check.enabled=false\n")        
+                file.puts("auth.token.check.enabled=false\n")  
+                
+                file.puts("# Configuration of the media library\n")
+                file.puts("#\n")
+                file.puts("dl.store.impl=com.liferay.portlet.documentlibrary.store.DBStore\n")
+                        
+                file.puts("# Configuration of Quartz\n")
+                file.puts("#\n")
+                file.puts("org.quartz.jobStore.isClustered=true\n")
+                        
+                        @logger.info {"--->  configuring Cluster \n"}
+               
+                        file.puts("# Configuration of Cluster Link\n")
+                        file.puts("#\n")
+                        file.puts("cluster.link.enabled=true\n")
+                        host_port = "#{host_name}:#{port}"
+                        file.puts("cluster.link.autodetect.address=" + host_port +"\n")
+                        
+                        #@logger.info {"--->  Disabling Caching \n"}
+                        #file.puts("browser.cache.disabled=true\n")
+                        
+                        
+                        @logger.info {"--->  Configuring unicast \n"}
+                        file.puts("# Configuration of Unicast\n")
+                        file.puts("#\n")
+                        file.puts("cluster.link.enabled=cluster.link.channel.properties.control=unicast.xml\n")
+                        file.puts("cluster.link.channel.properties.transport.0=unicast.xml\n")
+                        file.puts("ehcache.bootstrap.cache.loader.factory=com.liferay.portal.cache.ehcache.JGroupsBootstrapCacheLoaderFactory\n")
+                        file.puts("ehcache.cache.event.listener.factory=net.sf.ehcache.distribution.jgroups.JGroupsCacheReplicatorFactory\n")
+                        file.puts("ehcache.cache.manager.peer.provider.factory=net.sf.ehcache.distribution.jgroups.JGroupsCacheManagerPeerProviderFactory\n")
+                        file.puts("net.sf.ehcache.configurationResourceName.peerProviderProperties=file=/unicast.xml\n")
+                        file.puts("ehcache.multi.vm.config.location.peerProviderProperties=file=/unicast.xml\n")
+                        
               end
               
             end # end with_timing
