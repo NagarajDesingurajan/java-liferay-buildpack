@@ -56,10 +56,10 @@ gemfire_store:
     version: 8.0.+
     repository_root: "{default.repository.root}/gem-fire-security"
   gemfire_logging:
-    version: 1.7.7
+    version: 1.5.8
     repository_root: "{default.repository.root}/slf4j-jdk14"
   gemfire_logging_api:
-    version: 1.7.7
+    version: 1.5.8
     repository_root: "{default.repository.root}/slf4j-api"
   gemfire_log4j_api:
     version: 2.1.0
